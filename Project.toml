@@ -1,0 +1,13 @@
+name = "Alphalytics"
+uuid = "bbb4f579-663a-413a-a99c-07a72144f010"
+authors = ["George Georgiev <georgegi86@gmail.com> and contributors"]
+version = "0.1.0-DEV"
+
+[compat]
+julia = "1.6.7"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
