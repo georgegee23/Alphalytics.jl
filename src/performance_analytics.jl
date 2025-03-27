@@ -1,10 +1,9 @@
 ########################################## Performance Analytics ###########################################################
 
 
-
 #---------------------------------------------------------------------------------
 
-function returns_to_prices(returns::TimeArray, init_value::Int = 1)
+function cumulative_growth(returns::TimeArray, init_value::Number = 1)
 
     """
     Compute the cumulative product of returns, preserving NaN locations.
@@ -19,22 +18,22 @@ function returns_to_prices(returns::TimeArray, init_value::Int = 1)
     Returns:
     - TimeArray with cumulative products, preserving NaN locations
     """
-    
+
     values_matrix = values(returns)
     result = similar(values_matrix)
-    
-    for col in 1:size(values_matrix, 2)
+
+    for col_index in axes(values_matrix, 2)
         cumulative = init_value
-        for row in 1:size(values_matrix, 1)
-            if isnan(values_matrix[row, col])
-                result[row, col] = NaN
+        for row_index in axes(values_matrix, 1)
+            if isnan(values_matrix[row_index, col_index])
+                result[row_index, col_index] = NaN
             else
-                cumulative *= (1 + values_matrix[row, col])
-                result[row, col] = cumulative
+                cumulative *= (1 + values_matrix[row_index, col_index])
+                result[row_index, col_index] = cumulative
             end
         end
     end
-    
+
     return TimeArray(timestamp(returns), result, colnames(returns))
 end
 
@@ -220,7 +219,7 @@ function sortino_ratio(returns::TimeArray, mar::Number; corrected::Bool=true)
     mean_rets = mean(values(returns), dims=1) |> vec  # Get mean returns as a vector
     
     # Avoid division by zero
-    sortino_ratios = [down_dev[i] != 0 ? mean_rets[i] / down_dev[i] : NaN for i in 1:length(down_dev)]
+    sortino_ratios = [down_dev[i] != 0 ? mean_rets[i] / down_dev[i] : NaN for i in eachindex(down_dev)]
     
     return sortino_ratios
 end

@@ -49,14 +49,20 @@ end
 
 
 function rowwise_ordinalrank(ta::TimeArray)
+
     """
-    Compute ordinal ranks for each value in the TimeArray along rows, ignoring NaNs.
+    Compute ordinal ranks for each value in the `TimeArray` along rows, ignoring `NaN`s.
 
-    Parameters:
-    - ta: TimeArray containing numerical data.
-
-    Returns:
-    - A TimeArray with ordinal ranks computed for each row.
+        This function processes each row of the input `TimeArray` independently. For each row, it assigns ranks to the non-`NaN` values based on their order: the smallest value gets rank 1, the next smallest gets rank 2, and so on. Positions with `NaN` in the input remain `NaN` in the output.
+        
+        # Parameters
+        - `ta::TimeArray`: A `TimeArray` containing numerical data. It is expected to have a 2D matrix of values, with rows typically representing time points and columns representing variables.
+        
+        # Returns
+        - A new `TimeArray` with the same timestamps and column names as the input, but with values replaced by their row-wise ordinal ranks. `NaN` values are preserved in their original positions.
+        
+        # Notes
+        - It also assumes that the `TimeArray` is from the `TimeSeries.jl` package or a similar library that provides `values`, `timestamp`, and `colnames` functions.
     """
     
     # Extract values from TimeArray
@@ -66,7 +72,7 @@ function rowwise_ordinalrank(ta::TimeArray)
     rank_matrix = similar(values_matrix, Float64)
     
     # Compute rowwise ordinal ranks
-    for i in 1:size(values_matrix, 1)
+    for i in axes(values_matrix,1)
         row = values_matrix[i, :]
         non_nan_indices = findall(!isnan, row)
         non_nan_values = row[non_nan_indices]
@@ -105,7 +111,7 @@ function rowwise_competerank(ta::TimeArray)
     rank_matrix = similar(values_matrix, Float64)
     
     # Compute rowwise ordinal ranks
-    for i in 1:size(values_matrix, 1)
+    for i in axes(values_matrix, 1)
         row = values_matrix[i, :]
         non_nan_indices = findall(!isnan, row)
         non_nan_values = row[non_nan_indices]
@@ -144,7 +150,7 @@ function rowwise_tiedrank(ta::TimeArray)
     rank_matrix = similar(values_matrix, Float64)
     
     # Compute rowwise ordinal ranks
-    for i in 1:size(values_matrix, 1)
+    for i in axes(values_matrix, 1)
         row = values_matrix[i, :]
         non_nan_indices = findall(!isnan, row)
         non_nan_values = row[non_nan_indices]
@@ -183,7 +189,7 @@ function rowwise_denserank(ta::TimeArray)
     rank_matrix = similar(values_matrix, Float64)
     
     # Compute rowwise ordinal ranks
-    for i in 1:size(values_matrix, 1)
+    for i in axes(values_matrix, 1)
         row = values_matrix[i, :]
         non_nan_indices = findall(!isnan, row)
         non_nan_values = row[non_nan_indices]
@@ -272,7 +278,7 @@ function rowwise_quantiles(ta::TimeArray, n_quantiles::Int=5)
     values_matrix = values(ta_pctrank)
     result_matrix = similar(values_matrix)
     
-    for row in 1:size(values_matrix, 1)
+    for row in axes(values_matrix, 1)
         row_data = values_matrix[row, :]
         non_nan_data = filter(!isnan, row_data)
         
@@ -312,7 +318,7 @@ function rowwise_tiedquantiles(ta::TimeArray, n_quantiles::Int=5)
     values_matrix = values(ta_pctrank)
     result_matrix = similar(values_matrix)
     
-    for row in 1:size(values_matrix, 1)
+    for row in axes(values_matrix, 1)
         row_data = values_matrix[row, :]
         non_nan_data = filter(!isnan, row_data)
         
