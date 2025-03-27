@@ -32,4 +32,3 @@ export rows_spearmanr, rows_pearsonr, spearman_factor_decay, mean_autocor, rolli
     
 
 end
-end
