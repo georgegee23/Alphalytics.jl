@@ -30,8 +30,6 @@ export rows_spearmanr, rows_pearsonr, spearman_factor_decay, mean_autocor, rolli
     include("quantile_analytics.jl")
     
     include("plotting.jl")
-
-    
     
 
 end
