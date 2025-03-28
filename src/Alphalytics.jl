@@ -23,12 +23,15 @@ export rows_spearmanr, rows_pearsonr, spearman_factor_decay, mean_autocor, rolli
 
 # Write your package code here.
 
+    include("ts_utils.jl"
+    include("performance_analytics.jl")
+
     include("ic_analytics.jl")
     include("quantile_analytics.jl")
-    include("performance_analytics.jl")
+    
     include("plotting.jl")
 
-    include("ts_utils.jl")
+    )
     
 
 end
