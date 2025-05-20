@@ -362,17 +362,12 @@ function rowwise_count(ta::TimeArray, target_value::Any)
     return TimeArray(timestamp(ta), counts, ["CountOf_$target_value"])
 end
 
+
+
+
 function rowwise_countall(ta::TimeArray)
 
-    """
-    Compute counts of unique values in each row of the TimeArray, ignoring NaNs.
 
-    Parameters:
-    - ta: TimeArray containing numerical data.
-
-    Returns:
-    - A TimeArray with counts of unique values for each row.
-    """
 
     values_range = ta |> values |> unique |> x -> filter(!isnan, x) |> sort
     results_df = DataFrame(:TimeStamp => timestamp(ta))

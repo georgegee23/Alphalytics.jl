@@ -3,7 +3,50 @@
 
 
 
+
 ########################################### RETURN STATS ##########################################
+
+"""
+    returns_to_prices(returns::TimeArray, init_value::Int = 1) -> TimeArray
+
+Compute the cumulative product of returns, preserving NaN locations.
+
+This function treats the input as returns (as decimals or percentages), so it adds 1 to each value before multiplying.  
+NaN values are preserved in the output, and the cumulative product continues from the last non-NaN value after a NaN.
+
+# Arguments
+- `returns::TimeArray`: TimeArray containing return data with possible NaN values.
+- `init_value::Int`: Initial value for the cumulative product (default: 1).
+
+# Returns
+- `TimeArray`: TimeArray with cumulative products, preserving NaN locations.
+
+# Example
+```julia
+ta = TimeArray([0.1, NaN, 0.05, -0.02], timestamp=1:4, colnames=[:R])
+returns_to_prices(ta)
+```
+"""
+function returns_to_prices(returns::TimeArray, init_value::Int = 1)
+    values_matrix = values(returns)
+    result = similar(values_matrix)
+    for col in 1:size(values_matrix, 2)
+        cumulative = init_value
+        for row in 1:size(values_matrix, 1)
+            if isnan(values_matrix[row, col])
+                result[row, col] = NaN
+            else
+                cumulative *= (1 + values_matrix[row, col])
+                result[row, col] = cumulative
+            end
+        end
+    end
+    return TimeArray(timestamp(returns), result, colnames(returns))
+end
+
+
+
+
 
 function to_pctchange(prices::TimeArray, window::Int64=1)
 
