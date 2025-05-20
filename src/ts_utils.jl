@@ -385,6 +385,91 @@ function rowwise_countall(ta::TimeArray)
     return TimeArray(timestamp = :TimeStamp, results_df)
 end
 
+############################# DATA CLEANING ########################################
+
+"""
+    consecutive_values(ta::AbstractVector, target::Any, n::Int) -> Bool
+
+Check if there are at least `n` consecutive occurrences of `target` in the vector `ta`.
+
+# Arguments
+- `ta::AbstractVector`: The input vector to search.
+- `target::Any`: The value to look for consecutive occurrences of.
+- `n::Int`: The number of consecutive occurrences required.
+
+# Returns
+- `Bool`: Returns `true` if `target` appears at least `n` times in a row in `ta`, otherwise `false`.
+
+# Example
+```julia
+ta = [0, 1, 1, 1, 0, 1, 1]
+consecutive_values(ta, 1, 3) # returns true
+consecutive_values(ta, 0, 2) # returns false
+```
+"""
+function consecutive_values(ta::AbstractVector, target::Any, n::Int)
+    count = 0
+    for v in ta
+        if v == target
+            count += 1
+            if count == n
+                return true
+            end
+        else
+            count = 0
+        end
+    end
+    return false
+end
+
+"""
+    consecutive_values(mtx::AbstractMatrix, target::Any, n::Int) -> Vector{Bool}
+
+Check each column of the matrix `mtx` for at least `n` consecutive occurrences of `target`.
+
+# Arguments
+- `mtx::AbstractMatrix`: The input matrix to search (columns are checked independently).
+- `target::Any`: The value to look for consecutive occurrences of.
+- `n::Int`: The number of consecutive occurrences required.
+
+# Returns
+- `Vector{Bool}`: A boolean vector where each element indicates if the corresponding column contains at least `n` consecutive `target` values.
+
+# Example
+```julia
+mtx = [0 1; 1 1; 1 0; 1 1]
+consecutive_values(mtx, 1, 3) # returns [true, true]
+```
+"""
+function consecutive_values(mtx::AbstractMatrix, target::Any, n::Int)
+    results = Vector{Bool}(undef, size(mtx, 2))
+    for (i, col) in enumerate(eachcol(mtx))
+        results[i] = consecutive_values(col, target, n)
+    end
+    return results
+end
+
+"""
+    consecutive_values(ta::TimeArray, target::Any, n::Int) -> Vector{Bool}
+
+Check each column of the `TimeArray` for at least `n` consecutive occurrences of `target`.
+
+# Arguments
+- `ta::TimeArray`: The input TimeArray to search (columns are checked independently).
+- `target::Any`: The value to look for consecutive occurrences of.
+- `n::Int`: The number of consecutive occurrences required.
+
+# Returns
+- `Vector{Bool}`: A boolean vector where each element indicates if the corresponding column contains at least `n` consecutive `target` values.
+
+# Example
+```julia
+consecutive_values(returns_ts, 0, 10)
+```
+"""
+function consecutive_values(ta::TimeArray, target::Any, n::Int)
+    return consecutive_values(values(ta), target, n)
+end
 
 
 
