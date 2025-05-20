@@ -45,9 +45,6 @@ function returns_to_prices(returns::TimeArray, init_value::Int = 1)
 end
 
 
-
-
-
 function to_pctchange(prices::TimeArray, window::Int64=1)
 
     """

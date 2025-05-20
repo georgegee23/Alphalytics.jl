@@ -210,55 +210,71 @@ function rowwise_denserank(ta::TimeArray)
     return TimeArray(timestamp(ta), rank_matrix, colnames(ta))
 end
 
+################### PERCENTILE RANK FUNCTIONS ################################
+
+"""
+    rowwise_ordinal_pctrank(ta::TimeArray) -> TimeArray
+
+Compute ordinal percentile ranks for each value in the `TimeArray` along rows, ignoring NaNs.
+
+For each row, non-NaN values are ranked ordinally, and their percentile rank is calculated as (ordinal rank) / (maximum rank in the row). NaN values are preserved in their original positions.
+
+# Arguments
+- `ta::TimeArray`: TimeArray containing numerical data.
+
+# Returns
+- `TimeArray`: A new TimeArray with ordinal percentile ranks for each row.
+
+# Notes
+- Rows with only one non-NaN value will result in NaN for that row's percentile calculation.
+- NaN values are preserved in their original positions.
+
+# Example
+```julia
+ta = TimeArray([1.0 3.0 NaN; 2.0 1.0 4.0], timestamp=1:2, colnames=[:A, :B, :C])
+rowwise_ordinal_pctrank(ta)
+```
+"""
 function rowwise_ordinal_pctrank(ta::TimeArray)
-    """
-    Compute ordinal percentile ranks for each value in the TimeArray along rows, ignoring NaNs.
-
-    Parameters:
-    - ta: TimeArray containing numerical data.
-
-    Returns:
-    - A TimeArray with ordinal percentile ranks computed for each row.
-
-    Notes:
-    - Rows with only one non-NaN value will result in NaN for that row's percentile calculation.
-    - Percentile ranks are calculated as (ordinal rank) / (maximum rank in the row).
-    - NaN values are preserved in their original positions.
-
-    """
-    
     ta_ordrank = rowwise_ordinalrank(ta)
-    max_values = ta_ordrank |> values |> eachrow |> row -> filter.(!isnan, row) .|> maximum
-
+    max_values = [maximum([x for x in row if !isnan(x)]) for row in eachrow(values(ta_ordrank))]
     ta_ord_pct = ta_ordrank ./ max_values
-
     return ta_ord_pct
 end
 
+
+"""
+    rowwise_tied_pctrank(ta::TimeArray) -> TimeArray
+
+Compute tied percentile ranks for each value in the `TimeArray` along rows, ignoring NaNs.
+
+For each row, non-NaN values are ranked using tied ranking, and their percentile rank is calculated as (tied rank) / (maximum rank in the row). NaN values are preserved in their original positions.
+
+# Arguments
+- `ta::TimeArray`: TimeArray containing numerical data.
+
+# Returns
+- `TimeArray`: A new TimeArray with tied percentile ranks for each row.
+
+# Notes
+- Rows with only one non-NaN value will result in NaN for that row's percentile calculation.
+- NaN values are preserved in their original positions.
+
+# Example
+```julia
+ta = TimeArray([1.0 3.0 NaN; 2.0 1.0 4.0], timestamp=1:2, colnames=[:A, :B, :C])
+rowwise_tied_pctrank(ta)
+```
+"""
 function rowwise_tied_pctrank(ta::TimeArray)
-    """
-    Compute ordinal percentile ranks for each value in the TimeArray along rows, ignoring NaNs.
-
-    Parameters:
-    - ta: TimeArray containing numerical data.
-
-    Returns:
-    - A TimeArray with ordinal percentile ranks computed for each row.
-
-    Notes:
-    - Rows with only one non-NaN value will result in NaN for that row's percentile calculation.
-    - Percentile ranks are calculated as (ordinal rank) / (maximum rank in the row).
-    - NaN values are preserved in their original positions.
-
-    """
-    
-    ta_ordrank = rowwise_tiedrank(ta)
-    max_values = ta_ordrank |> values |> eachrow |> row -> filter.(!isnan, row) .|> maximum
-
-    ta_ord_pct = ta_ordrank ./ max_values
-
-    return ta_ord_pct
+    ta_tiedrank = rowwise_tiedrank(ta)
+    max_values = [maximum([x for x in row if !isnan(x)]) for row in eachrow(values(ta_tiedrank))]
+    ta_tied_pct = ta_tiedrank ./ max_values
+    return ta_tied_pct
 end
+
+
+################### QUANTILES ###################################
 
 function rowwise_quantiles(ta::TimeArray, n_quantiles::Int=5)
     
