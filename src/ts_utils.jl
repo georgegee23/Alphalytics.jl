@@ -356,48 +356,75 @@ function rowwise_tiedquantiles(ta::TimeArray, n_quantiles::Int=5)
     return TimeArray(timestamp(ta), result_matrix, colnames(ta))
 end
 
+######## COUNT FUNCTIONS #####################
 
+"""
+    rowwise_count(ta::TimeArray, target_value::Any) -> TimeArray
+
+Count the occurrences of `target_value` in each row of a `TimeArray`.
+
+# Arguments
+- `ta::TimeArray`: The TimeArray to analyze.
+- `target_value::Any`: The value to count within each row. If `target_value === NaN`, counts NaN values.
+
+# Returns
+- `TimeArray`: A new TimeArray where each entry represents the count of `target_value` (or NaN) in 
+  the corresponding row of the input TimeArray. The timestamp from the input TimeArray is preserved.
+
+# Example
+```julia
+ta = TimeArray([1 2 NaN; NaN 2 1; 1 1 1], timestamp=1:3, colnames=[:A, :B, :C])
+rowwise_count(ta, 1)      # Counts 1s in each row
+rowwise_count(ta, NaN)    # Counts NaNs in each row
+```
+"""
 function rowwise_count(ta::TimeArray, target_value::Any)
-
-    """
-    Counts the occurrences of `target_value` in each row of the given `TimeArray` `ta`.
-
-    # Arguments
-    - `ta::TimeArray`: The TimeArray to analyze.
-    - `target_value::Any`: The value to count within each row.
-
-    # Returns
-    - A new `TimeArray` where each entry represents the count of `target_value` in 
-    the corresponding row of the input `TimeArray`. The timestamp from the input 
-    `TimeArray` is preserved.
-    """
-
     values_matrix = values(ta)
-    counts = [count(x -> x == target_value, row) for row in eachrow(values_matrix)]
-    
-    return TimeArray(timestamp(ta), counts, ["CountOf_$target_value"])
+    if target_value === NaN
+        counts = [count(isnan, row) for row in eachrow(values_matrix)]
+        return TimeArray(timestamp(ta), counts, ["Count"])
+    else
+        counts = [count(x -> x == target_value, row) for row in eachrow(values_matrix)]
+        return TimeArray(timestamp(ta), counts, ["Count"])
+    end
 end
 
 
+"""
+    rowwise_countall(ta::TimeArray) -> TimeArray
 
+Count the occurrences of all unique (non-NaN) values in each row of a `TimeArray`.
 
+# Arguments
+- `ta::TimeArray`: The input TimeArray to analyze.
+
+# Returns
+- `TimeArray`: A new TimeArray where each column represents the count of a unique value (excluding NaN) in each row of the input. The timestamp is preserved.
+
+# Example
+```julia
+ta = TimeArray([1 2 1; 2 2 1; 1 1 1], timestamp=1:3, colnames=[:A, :B, :C])
+rowwise_countall(ta)
+```
+"""
 function rowwise_countall(ta::TimeArray)
-
-
-
+    # Get all unique, non-NaN values in the TimeArray
     values_range = ta |> values |> unique |> x -> filter(!isnan, x) |> sort
+
+    # Prepare a DataFrame to collect results
     results_df = DataFrame(:TimeStamp => timestamp(ta))
 
+    # For each unique value, count its occurrences rowwise
     for val in values_range
-
-        results_df[!, "Var_$val"] = rowwise_count(ta, val) |> values 
+        results_df[!, "$val"] = rowwise_count(ta, val) |> values
     end
 
-    return TimeArray(timestamp = :TimeStamp, results_df)
+    # Return as a TimeArray, using the timestamp column
+    return TimeArray(results_df, timestamp = :TimeStamp)
 end
 
-############################# DATA CLEANING ########################################
 
+####### CONSECUTIVE COUNT #################
 """
     consecutive_values(ta::AbstractVector, target::Any, n::Int) -> Bool
 
