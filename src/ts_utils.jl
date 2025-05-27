@@ -2,211 +2,200 @@
 
 ####### TIME ARRAY MANIPULATIONS ##########################################################
 
+"""
+    row_mean(ta::TimeArray) -> TimeArray
+
+Calculate the mean of each row in a `TimeArray`, ignoring NaN values.
+
+# Arguments
+- `ta::TimeArray`: Input TimeArray containing data with possible NaN values.
+
+# Returns
+- `TimeArray`: A new TimeArray with the same timestamps as the input, where each value represents 
+  the mean of non-NaN values in the corresponding row of the input.
+
+# Example
+```julia
+ta = TimeArray([1.0 2.0 NaN; 4.0 NaN 6.0], timestamp=1:2, colnames=[:A, :B, :C])
+row_mean(ta)
+```
+"""
 function row_mean(ta::TimeArray)
-
-    """
-    Calculate the mean of each row in a TimeArray, ignoring NaN values.
-
-    Parameters:
-    - ta: TimeArray containing data with possible NaN values
-
-    Returns:
-    - TimeArray with the same timestamps as the input, where each value represents 
-      the mean of non-NaN values in the corresponding row of the input.
-    """
-    
     ta_mtx = values(ta)
-    
     # Calculate row means, ignoring NaN values
     row_mu = [mean(filter(!isnan, row)) for row in eachrow(ta_mtx)]
-    
     # Create a meaningful column name
     col_name = [:Mean]
-    
     return TimeArray(timestamp(ta), row_mu, col_name)
 end
 
 
+"""
+    column_mean(ta::TimeArray) -> DataFrame
+
+Calculate the mean of each column in a `TimeArray`, ignoring NaN values.
+
+# Arguments
+- `ta::TimeArray`: Input TimeArray containing data with possible NaN values.
+
+# Returns
+- `DataFrame`: A DataFrame with columns `:ID` (column names) and `:Mean` (mean of non-NaN values for each column).
+
+# Example
+```julia
+ta = TimeArray([1.0 2.0 NaN; 4.0 NaN 6.0], timestamp=1:2, colnames=[:A, :B, :C])
+column_mean(ta)
+```
+"""
 function column_mean(ta::TimeArray)
-
-    """
-    Calculate the mean of each column in a TimeArray, ignoring NaN values.
-
-    Parameters:
-    - ta: TimeArray containing data with possible NaN values
-
-    Returns:
-    - DataFrame with the column name, where each value represents the mean of non-NaN values.
-    """
-    
     ta_mtx = values(ta)
-    
-    # Calculate row means, ignoring NaN values
+    # Calculate column means, ignoring NaN values
     col_mu = [mean(filter(!isnan, col)) for col in eachcol(ta_mtx)]
-    
     return DataFrame(ID = colnames(ta), Mean = col_mu)
 end
 
 
+"""
+    rowwise_ordinalrank(ta::TimeArray) -> TimeArray
+
+Compute ordinal ranks for each value in the `TimeArray` along rows, ignoring `NaN`s.
+
+For each row, non-NaN values are ranked in ascending order (smallest gets rank 1). NaN positions remain NaN in the output.
+
+# Arguments
+- `ta::TimeArray`: A `TimeArray` containing numerical data.
+
+# Returns
+- `TimeArray`: A new TimeArray with the same timestamps and column names as the input, but with values replaced by their row-wise ordinal ranks. NaN values are preserved in their original positions.
+
+# Example
+```julia
+ta = TimeArray([1.0 3.0 NaN; 2.0 1.0 4.0], timestamp=1:2, colnames=[:A, :B, :C])
+rowwise_ordinalrank(ta)
+```
+"""
 function rowwise_ordinalrank(ta::TimeArray)
-
-    """
-    Compute ordinal ranks for each value in the `TimeArray` along rows, ignoring `NaN`s.
-
-        This function processes each row of the input `TimeArray` independently. For each row, it assigns ranks to the non-`NaN` values based on their order: the smallest value gets rank 1, the next smallest gets rank 2, and so on. Positions with `NaN` in the input remain `NaN` in the output.
-        
-        # Parameters
-        - `ta::TimeArray`: A `TimeArray` containing numerical data. It is expected to have a 2D matrix of values, with rows typically representing time points and columns representing variables.
-        
-        # Returns
-        - A new `TimeArray` with the same timestamps and column names as the input, but with values replaced by their row-wise ordinal ranks. `NaN` values are preserved in their original positions.
-        
-        # Notes
-        - It also assumes that the `TimeArray` is from the `TimeSeries.jl` package or a similar library that provides `values`, `timestamp`, and `colnames` functions.
-    """
-    
-    # Extract values from TimeArray
     values_matrix = values(ta)
-    
-    # Initialize matrix for ranks
     rank_matrix = similar(values_matrix, Float64)
-    
-    # Compute rowwise ordinal ranks
-    for i in axes(values_matrix,1)
+    for i in axes(values_matrix, 1)
         row = values_matrix[i, :]
         non_nan_indices = findall(!isnan, row)
         non_nan_values = row[non_nan_indices]
-        
         if !isempty(non_nan_values)
-            # Compute ordinal ranks for non-NaN values
             row_ranks = ordinalrank(non_nan_values)
-            
-            # Assign ranks back to the original indices
             rank_matrix[i, non_nan_indices] .= row_ranks
         end
-        
         # Preserve NaN values in rank matrix
-        rank_matrix[i, setdiff(1:end, non_nan_indices)] .= NaN
+        rank_matrix[i, setdiff(1:length(row), non_nan_indices)] .= NaN
     end
-    
-    # Create new TimeArray with computed ranks
     return TimeArray(timestamp(ta), rank_matrix, colnames(ta))
 end
 
+"""
+    rowwise_competerank(ta::TimeArray) -> TimeArray
+
+Compute "competition" ranks (also known as standard competition ranks or "1224" ranking) for each value in the `TimeArray` along rows, ignoring NaNs.
+
+For each row, non-NaN values are ranked in ascending order (smallest gets rank 1, ties get the same rank, and the next rank is incremented by the number of tied values). NaN positions remain NaN in the output.
+
+# Arguments
+- `ta::TimeArray`: A `TimeArray` containing numerical data.
+
+# Returns
+- `TimeArray`: A new TimeArray with the same timestamps and column names as the input, but with values replaced by their row-wise competition ranks. NaN values are preserved in their original positions.
+
+# Example
+```julia
+ta = TimeArray([1.0 3.0 NaN; 2.0 1.0 4.0], timestamp=1:2, colnames=[:A, :B, :C])
+rowwise_competerank(ta)
+```
+"""
 function rowwise_competerank(ta::TimeArray)
-    """
-    Compute ordinal ranks for each value in the TimeArray along rows, ignoring NaNs.
-
-    Parameters:
-    - ta: TimeArray containing numerical data.
-
-    Returns:
-    - A TimeArray with ordinal ranks computed for each row.
-    """
-    
-    # Extract values from TimeArray
     values_matrix = values(ta)
-    
-    # Initialize matrix for ranks
     rank_matrix = similar(values_matrix, Float64)
-    
-    # Compute rowwise ordinal ranks
     for i in axes(values_matrix, 1)
         row = values_matrix[i, :]
         non_nan_indices = findall(!isnan, row)
         non_nan_values = row[non_nan_indices]
-        
         if !isempty(non_nan_values)
-            # Compute ordinal ranks for non-NaN values
             row_ranks = competerank(non_nan_values)
-            
-            # Assign ranks back to the original indices
             rank_matrix[i, non_nan_indices] .= row_ranks
         end
-        
         # Preserve NaN values in rank matrix
-        rank_matrix[i, setdiff(1:end, non_nan_indices)] .= NaN
+        rank_matrix[i, setdiff(1:length(row), non_nan_indices)] .= NaN
     end
-    
-    # Create new TimeArray with computed ranks
     return TimeArray(timestamp(ta), rank_matrix, colnames(ta))
 end
 
+"""
+    rowwise_tiedrank(ta::TimeArray) -> TimeArray
+
+Compute tied ranks for each value in the `TimeArray` along rows, ignoring NaNs.
+
+For each row, non-NaN values are ranked in ascending order, with ties receiving the average of the ranks they span (tied ranking). NaN positions remain NaN in the output.
+
+# Arguments
+- `ta::TimeArray`: A `TimeArray` containing numerical data.
+
+# Returns
+- `TimeArray`: A new TimeArray with the same timestamps and column names as the input, but with values replaced by their row-wise tied ranks. NaN values are preserved in their original positions.
+
+# Example
+```julia
+ta = TimeArray([1.0 3.0 NaN; 2.0 1.0 4.0], timestamp=1:2, colnames=[:A, :B, :C])
+rowwise_tiedrank(ta)
+```
+"""
 function rowwise_tiedrank(ta::TimeArray)
-    """
-    Compute tied ranks for each value in the TimeArray along rows, ignoring NaNs.
-
-    Parameters:
-    - ta: TimeArray containing numerical data.
-
-    Returns:
-    - A TimeArray with ordinal ranks computed for each row.
-    """
-    
-    # Extract values from TimeArray
     values_matrix = values(ta)
-    
-    # Initialize matrix for ranks
     rank_matrix = similar(values_matrix, Float64)
-    
-    # Compute rowwise ordinal ranks
     for i in axes(values_matrix, 1)
         row = values_matrix[i, :]
         non_nan_indices = findall(!isnan, row)
         non_nan_values = row[non_nan_indices]
-        
         if !isempty(non_nan_values)
-            # Compute ordinal ranks for non-NaN values
             row_ranks = StatsBase.tiedrank(non_nan_values)
-            
-            # Assign ranks back to the original indices
             rank_matrix[i, non_nan_indices] .= row_ranks
         end
-        
         # Preserve NaN values in rank matrix
-        rank_matrix[i, setdiff(1:end, non_nan_indices)] .= NaN
+        rank_matrix[i, setdiff(1:length(row), non_nan_indices)] .= NaN
     end
-    
-    # Create new TimeArray with computed ranks
     return TimeArray(timestamp(ta), rank_matrix, colnames(ta))
 end
 
+"""
+    rowwise_denserank(ta::TimeArray) -> TimeArray
+
+Compute dense ranks for each value in the `TimeArray` along rows, ignoring NaNs.
+
+For each row, non-NaN values are ranked in ascending order using dense ranking (no gaps in ranks for ties). NaN positions remain NaN in the output.
+
+# Arguments
+- `ta::TimeArray`: A `TimeArray` containing numerical data.
+
+# Returns
+- `TimeArray`: A new TimeArray with the same timestamps and column names as the input, but with values replaced by their row-wise dense ranks. NaN values are preserved in their original positions.
+
+# Example
+```julia
+ta = TimeArray([1.0 3.0 NaN; 2.0 1.0 4.0], timestamp=1:2, colnames=[:A, :B, :C])
+rowwise_denserank(ta)
+```
+"""
 function rowwise_denserank(ta::TimeArray)
-    """
-    Compute tied ranks for each value in the TimeArray along rows, ignoring NaNs.
-
-    Parameters:
-    - ta: TimeArray containing numerical data.
-
-    Returns:
-    - A TimeArray with ordinal ranks computed for each row.
-    """
-    
-    # Extract values from TimeArray
     values_matrix = values(ta)
-    
-    # Initialize matrix for ranks
     rank_matrix = similar(values_matrix, Float64)
-    
-    # Compute rowwise ordinal ranks
     for i in axes(values_matrix, 1)
         row = values_matrix[i, :]
         non_nan_indices = findall(!isnan, row)
         non_nan_values = row[non_nan_indices]
-        
         if !isempty(non_nan_values)
-            # Compute ordinal ranks for non-NaN values
             row_ranks = StatsBase.denserank(non_nan_values)
-            
-            # Assign ranks back to the original indices
             rank_matrix[i, non_nan_indices] .= row_ranks
         end
-        
         # Preserve NaN values in rank matrix
-        rank_matrix[i, setdiff(1:end, non_nan_indices)] .= NaN
+        rank_matrix[i, setdiff(1:length(row), non_nan_indices)] .= NaN
     end
-    
-    # Create new TimeArray with computed ranks
     return TimeArray(timestamp(ta), rank_matrix, colnames(ta))
 end
 
@@ -276,83 +265,86 @@ end
 
 ################### QUANTILES ###################################
 
-function rowwise_quantiles(ta::TimeArray, n_quantiles::Int=5)
-    
-    """
-    Convert values in a TimeArray to quantiles rowwise, ignoring NaN values.
+"""
+    rowwise_ordinal_quantiles(ta::TimeArray, n_quantiles::Int=5) -> TimeArray
 
-    Parameters:
-    - ta: Input TimeArray
-    - n_quantiles: Number of quantiles (default: 5)
+Assign each value in a TimeArray to a quantile (1 to n_quantiles) within its row, ignoring NaNs.
 
-    Returns:
-    - A new TimeArray with non-NaN values replaced by their quantile ranks
-    """
-    
+For each row, non-NaN values are assigned to quantiles based on their ordinal percentile rank. NaN values remain NaN.
+
+# Arguments
+- `ta::TimeArray`: Input TimeArray.
+- `n_quantiles::Int`: Number of quantiles (default 5).
+
+# Returns
+- `TimeArray`: Same shape as input, with quantile numbers (1 = lowest, n_quantiles = highest).
+
+# Example
+```julia
+ta = TimeArray([1.0 3.0 NaN; 2.0 1.0 4.0], timestamp=1:2, colnames=[:A, :B, :C])
+rowwise_quantiles(ta, 3)
+```
+"""
+
+function rowwise_ordinal_quantiles(ta::TimeArray, n_quantiles::Int=5)
     ta_pctrank = rowwise_ordinal_pctrank(ta)
-
     values_matrix = values(ta_pctrank)
-    result_matrix = similar(values_matrix)
-    
+    result_matrix = fill(NaN, size(values_matrix))
+    # Define quantile edges (0, 1/n, 2/n, ..., 1)
+    quantile_edges = range(0, stop=1, length=n_quantiles+1)
     for row in axes(values_matrix, 1)
         row_data = values_matrix[row, :]
-        non_nan_data = filter(!isnan, row_data)
-        
-        if isempty(non_nan_data)
-            result_matrix[row, :] .= NaN
-        else
-            quantile_breaks = quantile(non_nan_data, (0:n_quantiles)/n_quantiles)
-            
-            for (col, value) in enumerate(row_data)
-                if isnan(value)
-                    result_matrix[row, col] = NaN
-                else
-                    result_matrix[row, col] = findfirst(q -> value <= q, quantile_breaks[2:end])
-                end
+        for (col, value) in enumerate(row_data)
+            if isnan(value)
+                result_matrix[row, col] = NaN
+            else
+                # Find quantile bin (1-based)
+                q = findfirst(i -> value <= quantile_edges[i], 2:length(quantile_edges))
+                result_matrix[row, col] = isnothing(q) ? n_quantiles : q
             end
         end
     end
-    
     return TimeArray(timestamp(ta), result_matrix, colnames(ta))
 end
 
-function rowwise_tiedquantiles(ta::TimeArray, n_quantiles::Int=5)
-    
-    """
-    Convert values in a TimeArray to quantiles rowwise, ignoring NaN values.
+"""
+    rowwise_tied_quantiles(ta::TimeArray, n_quantiles::Int=5) -> TimeArray
 
-    Parameters:
-    - ta: Input TimeArray
-    - n_quantiles: Number of quantiles (default: 5)
+Assign each value in a TimeArray to a quantile (1 to n_quantiles) within its row, using tied percentile ranks, ignoring NaNs.
 
-    Returns:
-    - A new TimeArray with non-NaN values replaced by their quantile ranks
-    """
-    
+For each row, non-NaN values are assigned to quantiles based on their tied percentile rank. NaN values remain NaN.
+
+# Arguments
+- `ta::TimeArray`: Input TimeArray.
+- `n_quantiles::Int`: Number of quantiles (default 5).
+
+# Returns
+- `TimeArray`: Same shape as input, with quantile numbers (1 = lowest, n_quantiles = highest).
+
+# Example
+```julia
+ta = TimeArray([1.0 3.0 NaN; 2.0 1.0 4.0], timestamp=1:2, colnames=[:A, :B, :C])
+rowwise_tiedquantiles(ta, 3)
+```
+"""
+function rowwise_tied_quantiles(ta::TimeArray, n_quantiles::Int=5)
     ta_pctrank = rowwise_tied_pctrank(ta)
-
     values_matrix = values(ta_pctrank)
-    result_matrix = similar(values_matrix)
-    
+    result_matrix = fill(NaN, size(values_matrix))
+    # Define quantile edges (0, 1/n, ..., 1)
+    quantile_edges = range(0, stop=1, length=n_quantiles+1)
     for row in axes(values_matrix, 1)
         row_data = values_matrix[row, :]
-        non_nan_data = filter(!isnan, row_data)
-        
-        if isempty(non_nan_data)
-            result_matrix[row, :] .= NaN
-        else
-            quantile_breaks = quantile(non_nan_data, (0:n_quantiles)/n_quantiles)
-            
-            for (col, value) in enumerate(row_data)
-                if isnan(value)
-                    result_matrix[row, col] = NaN
-                else
-                    result_matrix[row, col] = findfirst(q -> value <= q, quantile_breaks[2:end])
-                end
+        for (col, value) in enumerate(row_data)
+            if isnan(value)
+                result_matrix[row, col] = NaN
+            else
+                # Find quantile bin (1-based)
+                q = findfirst(i -> value <= quantile_edges[i], 2:length(quantile_edges))
+                result_matrix[row, col] = isnothing(q) ? n_quantiles : q
             end
         end
     end
-    
     return TimeArray(timestamp(ta), result_matrix, colnames(ta))
 end
 
