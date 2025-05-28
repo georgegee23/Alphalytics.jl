@@ -15,7 +15,8 @@ export rows_spearmanr, rows_pearsonr, spearman_factor_decay, mean_autocor, rolli
 
     row_mean, column_mean, rowwise_ordinalrank, rowwise_competerank, rowwise_tiedrank, rowwise_denserank,
     rowwise_ordinal_pctrank, rowwise_tied_pctrank, 
-    rowwise_quantiles, rowwise_tiedquantiles, rowwise_count, rowwise_countall,
+    rowwise_ordinal_quantiles, rowwise_tied_quantiles, 
+    rowwise_count, rowwise_countall, consecutive_values,
 
     cumulative_growth, pct_change, drawdowns, annual_return, annual_stdev, 
     annual_sharpe_ratio, downside_deviation, sortino_ratio, max_drawdown, 
