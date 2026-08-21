@@ -1,18 +1,24 @@
 ####### PLOTS FOR ANALYSIS ##########################################################
 
+"""
+    plot_factor_distribution(factors::TimeArray; bins::Int = 20) -> Plot
+
+Plot the mean factor score over time alongside its distribution.
+
+The two views answer different questions: the time series shows whether the factor drifts
+or spikes, while the histogram shows whether its scores are well spread or bunched up.
+
+# Arguments
+- `factors::TimeArray`: Factor scores, one column per security.
+- `bins::Int`: Number of bins for the histogram (default: 20).
+
+# Returns
+- A 2x1 plot: the cross-sectional mean score per timestamp above, its histogram below.
+
+# Throws
+- `ArgumentError`: If `factors` is empty.
+"""
 function plot_factor_distribution(factors::TimeArray; bins::Int = 20)
-
-    """
-    Plots the distribution of factor scores over time and as a histogram.
-
-    Parameters:
-    - factor_score: TimeArray of factor scores
-    - bins: Number of bins for the histogram
-
-
-    Returns:
-    - A plot object combining a time series plot and a histogram
-    """
 
     # Ensure the factor_score is not empty
     if isempty(factors)
@@ -47,30 +53,34 @@ function plot_factor_distribution(factors::TimeArray; bins::Int = 20)
 end
 
 
+"""
+    plot_performance_table(table::DataFrame) -> Plot
+
+Plot a bar chart per headline statistic of a summary performance table.
+
+# Arguments
+- `table::DataFrame`: A table as returned by `quantile_performance_table` or
+    `performance_table`: a leading `Stat` column naming each row, then one column
+    per quantile or asset.
+
+# Returns
+- A 3x2 grid of bar charts, one per plotted statistic.
+"""
 function plot_performance_table(table::DataFrame)
 
-    """
-    Compute and plot table with summary performance statistics for factor quantiles.
-
-    Parameters:
-    - quantile_returns: TimeArray containing returns for each quantile
-    - benchmark_returns: TimeArray containing benchmark returns
-    - thresh_value: Threshold value for down markets (default: 0)
-    - periods_per_year: Number of periods in a year 
-
-    Returns:
-    - Plot
-    """ 
-
     quantile_names = names(table)[2:end]
-    bar_width=0.3
+    bar_width = 0.3
 
-    p1 = Plots.bar(quantile_names, collect(table[1,2:end]), labels = "Annual Return", bar_width = bar_width)
-    p2 = Plots.bar(quantile_names, collect(table[2,2:end]), labels = "Annual StDev", bar_width = bar_width)
-    p3 = Plots.bar(quantile_names, collect(table[3,2:end]), labels = "Sharpe Ratio", bar_width = bar_width)
-    p4 = Plots.bar(quantile_names, collect(table[5,2:end]), labels = "Max Drawdown", bar_width = bar_width)
-    p5 = Plots.bar(quantile_names, collect(table[6,2:end]), labels = "Up Capture", bar_width = bar_width)
-    p6 = Plots.bar(quantile_names, collect(table[7,2:end]), labels = "Down Capture", bar_width = bar_width)
+    # Rows are found by name rather than by position, so the plot stays correct
+    # whatever order the table lists its statistics in.
+    function bar_for(stat)
+        row = findfirst(==(stat), table.Stat)
+        isnothing(row) && throw(ArgumentError("Performance table has no \"$stat\" row"))
+        return Plots.bar(quantile_names, collect(table[row, 2:end]), labels = stat, bar_width = bar_width)
+    end
 
-    return Plots.plot(p1, p2, p3, p4, p5, p6, layout = (3, 2), size = (800,600), legend=:outertop)
+    stats_to_plot = ["Annual Return", "Annual StDev", "Sharpe Ratio",
+    "Max Drawdowns", "Up Capture", "Down Capture"]
+
+    return Plots.plot(bar_for.(stats_to_plot)..., layout = (3, 2), size = (800,600), legend=:outertop)
 end

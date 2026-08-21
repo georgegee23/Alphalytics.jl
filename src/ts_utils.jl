@@ -31,7 +31,7 @@ end
 
 
 """
-    column_mean(ta::TimeArray) -> DataFrame
+    column_mean(ta::TimeArray) -> Vector{Float64}
 
 Calculate the mean of each column in a `TimeArray`, ignoring NaN values.
 
@@ -39,7 +39,9 @@ Calculate the mean of each column in a `TimeArray`, ignoring NaN values.
 - `ta::TimeArray`: Input TimeArray containing data with possible NaN values.
 
 # Returns
-- `DataFrame`: A DataFrame with columns `:ID` (column names) and `:Mean` (mean of non-NaN values for each column).
+- `Vector{Float64}`: One mean per column, in column order. This is the same shape as the
+  other column statistics such as `stdev` and `downside_deviation`. Pair it with
+  `colnames(ta)` to label the results.
 
 # Example
 ```julia
@@ -51,7 +53,7 @@ function column_mean(ta::TimeArray)
     ta_mtx = values(ta)
     # Calculate column means, ignoring NaN values
     col_mu = [mean(filter(!isnan, col)) for col in eachcol(ta_mtx)]
-    return DataFrame(ID = colnames(ta), Mean = col_mu)
+    return col_mu
 end
 
 
@@ -282,10 +284,9 @@ For each row, non-NaN values are assigned to quantiles based on their ordinal pe
 # Example
 ```julia
 ta = TimeArray([1.0 3.0 NaN; 2.0 1.0 4.0], timestamp=1:2, colnames=[:A, :B, :C])
-rowwise_quantiles(ta, 3)
+rowwise_ordinal_quantiles(ta, 3)
 ```
 """
-
 function rowwise_ordinal_quantiles(ta::TimeArray, n_quantiles::Int=5)
     ta_pctrank = rowwise_ordinal_pctrank(ta)
     values_matrix = values(ta_pctrank)

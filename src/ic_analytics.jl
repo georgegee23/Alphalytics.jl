@@ -3,21 +3,33 @@
 
 ####### CORRELATION ANALYSIS ##########################################################
 
+"""
+    rows_spearmanr(factors::TimeArray, returns::TimeArray) -> TimeArray
+
+Compute the cross-sectional (row-wise) Spearman rank correlation between factors and returns.
+
+This is the rank information coefficient (IC): for each timestamp, the securities are ranked
+by factor score and by realised return, and the two rankings are correlated. Being rank based,
+it measures monotonic association and is insensitive to outliers.
+
+# Arguments
+- `factors::TimeArray`: Factor scores, one column per security.
+- `returns::TimeArray`: Realised returns, same dimensions and timestamps as `factors`.
+
+# Returns
+- `TimeArray`: A single column named `:SpearmanRank_IC` holding one correlation per timestamp.
+    A row is NaN when fewer than two securities have both a factor score and a return.
+
+# Throws
+- `AssertionError`: If `factors` and `returns` do not have the same dimensions.
+
+# Example
+```julia
+ic = rows_spearmanr(factor_scores, forward_returns)
+mean(filter(!isnan, values(ic)))  # average IC over the sample
+```
+"""
 function rows_spearmanr(factors::TimeArray, returns::TimeArray)
-    
-    """
-    Compute the cross-sectional (row-wise) Spearman correlation between two TimeArrays.
-
-    Arguments:
-    - `factors::TimeArray`: A time series of factor values.
-    - `returns::TimeArray`: A time series of return values.
-
-    Returns:
-    - A TimeArray of Spearman correlation coefficients.
-
-    Throws:
-    - An error if the dimensions do not match.
-    """
 
     factors_dims = size(factors)
     @assert factors_dims == size(returns) "TimeArrays must have the same dimensions"
@@ -50,21 +62,27 @@ end
 
 
 
+"""
+    rows_pearsonr(factors::TimeArray, returns::TimeArray) -> TimeArray
+
+Compute the cross-sectional (row-wise) Pearson correlation between factors and returns.
+
+This is the linear counterpart of [`rows_spearmanr`](@ref). It measures the strength of the
+linear relationship between factor score and realised return, so unlike the rank IC it is
+sensitive to outliers and to the scale of the factor.
+
+# Arguments
+- `factors::TimeArray`: Factor scores, one column per security.
+- `returns::TimeArray`: Realised returns, same dimensions and timestamps as `factors`.
+
+# Returns
+- `TimeArray`: A single column named `:Pearson_IC` holding one correlation per timestamp.
+    A row is NaN when fewer than two securities have both a factor score and a return.
+
+# Throws
+- `AssertionError`: If `factors` and `returns` do not have the same dimensions.
+"""
 function rows_pearsonr(factors::TimeArray, returns::TimeArray)
-    
-    """
-    Compute the cross-sectional (row-wise) Spearman correlation between two TimeArrays.
-
-    Arguments:
-    - `factors::TimeArray`: A time series of factor values.
-    - `returns::TimeArray`: A time series of return values.
-
-    Returns:
-    - A TimeArray of Spearman correlation coefficients.
-
-    Throws:
-    - An error if the dimensions do not match.
-    """
 
     factors_dims = size(factors)
     @assert factors_dims == size(returns) "TimeArrays must have the same dimensions"
@@ -90,28 +108,40 @@ function rows_pearsonr(factors::TimeArray, returns::TimeArray)
         end
     end
 
-    ta_correlations = TimeArray(timestamp(factors), correlations, [:SpearmanRank_IC])
-    
+    ta_correlations = TimeArray(timestamp(factors), correlations, [:Pearson_IC])
+
     return ta_correlations
 end
 
 
+"""
+    spearman_factor_decay(factors::TimeArray, returns::TimeArray, max_lags::Int) -> Vector{Pair{Int, Float64}}
+
+Measure how quickly a factor's predictive power decays as it ages.
+
+For each lag from 1 to `max_lags` the factor is shifted forward in time, re-aligned with the
+returns it would then be predicting, and the mean cross-sectional rank IC is taken. A series
+that holds its IC over many lags is slow to decay and tolerates less frequent rebalancing.
+
+# Arguments
+- `factors::TimeArray`: Factor scores, one column per security.
+- `returns::TimeArray`: Realised returns, same dimensions and timestamps as `factors`.
+- `max_lags::Int`: Largest lag to evaluate.
+
+# Returns
+- `Vector{Pair{Int, Float64}}`: One `lag => mean IC` pair per lag, ordered from lag 1 to
+    `max_lags`.
+
+# Throws
+- `AssertionError`: If `factors` and `returns` do not have the same dimensions.
+
+# Example
+```julia
+decay = spearman_factor_decay(factor_scores, forward_returns, 12)
+last.(decay)  # the mean IC at each lag, as a plain vector
+```
+"""
 function spearman_factor_decay(factors::TimeArray, returns:: TimeArray, max_lags::Int)
-
-    """
-
-    Compute the decay of the Spearman correlation between lagged factor data and returns.
-
-    # Arguments
-    - factors::TimeArray: A TimeArray containing factor data. Each column represents a different factor.
-    - returns::TimeArray: A TimeArray containing return data, corresponding in time to the factors.
-    - max_lag::Int: The maximum number of lags to calculate correlations for.
-
-    # Returns
-    - Dict{Int, Float64}: A dictionary where keys are lag periods and values are the average 
-        Spearman rank correlation coefficients for that lag.
-
-    """
 
     @assert size(factors) == size(returns) "Factors and returns must have the same dimensions"
     
@@ -131,22 +161,35 @@ function spearman_factor_decay(factors::TimeArray, returns:: TimeArray, max_lags
         factor_decay_corrs[lag_value] = mean(values(spearman))
     end
 
-    return sort(factor_decay_corrs)
+    # collect() first: a Dict has no order of its own, so sort its pairs by lag.
+    return sort(collect(factor_decay_corrs), by = first)
 end
 
 
+"""
+    mean_autocor(factors::TimeArray, maxlag::Int) -> Vector{Float64}
+
+Compute the average autocorrelation of factor scores across securities.
+
+Each security's own score history is autocorrelated, then the results are averaged across
+securities lag by lag. High autocorrelation means scores are persistent, which implies low
+turnover; low autocorrelation means the factor reshuffles its rankings quickly.
+
+# Arguments
+- `factors::TimeArray`: Factor scores, one column per security.
+- `maxlag::Int`: Maximum lag for which to compute the autocorrelation.
+
+# Returns
+- `Vector{Float64}`: Mean autocorrelation per lag, of length `maxlag + 1`. The first entry
+    is lag 0 and is therefore always 1.0; lag `k` sits at index `k + 1`.
+- If no security has more than `maxlag` non-NaN scores, a warning is issued and a vector of
+    `maxlag` NaNs is returned.
+
+# Details
+- NaN scores are dropped per security before the autocorrelation is computed, and securities
+    with `maxlag` or fewer remaining observations are excluded entirely.
+"""
 function mean_autocor(factors::TimeArray, maxlag::Int)
-
-    """
-    Compute the mean autocorrelation of security factor scores.
-
-    Parameters:
-    - factors: TimeArray where each column represents a security factor
-    - maxlag: Maximum lag for which to compute the autocorrelation
-
-    Returns:
-    - A vector of mean autocorrelations for each lag
-    """
 
     data = values(factors) |> eachcol .|> col -> filter(!isnan, col)
     clean_data = filter(v -> length(v) > maxlag, data)
@@ -163,26 +206,30 @@ function mean_autocor(factors::TimeArray, maxlag::Int)
     return mean_vec
 end
 
+"""
+    rolling_mean_autocor(factors::TimeArray, acf_maxlag::Int, window::Int) -> TimeArray
+
+Track how factor persistence changes over time by computing [`mean_autocor`](@ref) on a
+rolling window.
+
+# Arguments
+- `factors::TimeArray`: Factor scores, one column per security.
+- `acf_maxlag::Int`: The maximum lag for which to compute autocorrelations.
+- `window::Int`: Number of observations in each rolling window.
+
+# Returns
+- `TimeArray`: One column per lag, named `ACF1` through `ACF<acf_maxlag>`, and one row per
+    window. Lag 0 is dropped, since it is always 1.0. Each row is stamped with the timestamp
+    of the last observation in its window, so the series starts at `timestamp(factors)[window]`.
+
+# Throws
+- `ErrorException`: If `factors` has fewer than `window + acf_maxlag` observations.
+
+# Details
+- A window whose autocorrelation cannot be computed is warned about and left uninitialised
+    rather than aborting the whole series.
+"""
 function rolling_mean_autocor(factors::TimeArray, acf_maxlag::Int, window::Int)
-    """
-    Compute the rolling autocorrelation for a given window.
-
-    This function calculates the autocorrelations up to `acf_maxlag` for each window of length
-    `window` over the series provided in `factors`. 
-
-    Arguments:
-    - `factors::TimeArray`: A TimeArray object containing the time series data.
-    - `acf_maxlag::Int`: The maximum lag for which to compute autocorrelations.
-    - `window::Int`: The size of the window over which to compute the autocorrelations.
-
-    Returns:
-    - `TimeArray`: A TimeArray where each column represents the autocorrelation for a specific lag,
-      and each row corresponds to a window.
-
-    Note:
-    - The function ensures that there are enough data points (`window` + `acf_maxlag`) before starting the computation.
-    - NaN values are handled by the `mean_factors_autocor` function.
-    """
 
     if size(factors, 1) < window + acf_maxlag
         error("TimeArray must have at least `window` + `acf_maxlag` observations.")

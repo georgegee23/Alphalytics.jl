@@ -18,8 +18,8 @@ export rows_spearmanr, rows_pearsonr, spearman_factor_decay, mean_autocor, rolli
     rowwise_ordinal_quantiles, rowwise_tied_quantiles, 
     rowwise_count, rowwise_countall, consecutive_values,
 
-    cumulative_growth, pct_change, drawdowns, annual_return, annual_stdev, 
-    annual_sharpe_ratio, downside_deviation, sortino_ratio, max_drawdown, 
+    to_cumulative_growth, to_pctchange, returns_to_prices, drawdowns, annualized_return, annualized_stdev,
+    annualized_sharpe_ratio, downside_deviation, sortino_ratio, max_drawdown,
     down_capture, up_capture, overall_capture, performance_table
 
 # Write your package code here.
